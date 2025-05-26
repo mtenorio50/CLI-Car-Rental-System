@@ -1,4 +1,4 @@
-# CAR RENTAL SYSTEM
+ # CAR RENTAL SYSTEM
 
 This is a simple Car Rental Management System developed in Python.
 
@@ -34,4 +34,24 @@ Follow the on-screen prompts to login as an admin or staff member and manage the
 
 ## Version Control
 
-This project is under version control. Commits reflect changes made during development, including bug fixes and feature implementations. 
+This project is under version control. Commits reflect changes made during development, including bug fixes and feature implementations.
+
+**Last Updated:** 2024-05-27
+
+## Progress
+
+- Implemented user authentication (Admin/Staff).
+- Implemented basic car management (Add, Edit Rate, Delete, View).
+- Added car search by plate number with error handling.
+- Adjusted car editing to focus on rate per day.
+- Setup basic database structure.
+- Created initial README file.
+- Updated delete car functionality to use plate number.
+
+**Next Steps:**
+
+- Implement Customer Management.
+- Implement Renting a Car.
+- Implement Viewing Rent History.
+- Refine user interface and add input validation.
+- Consider cross-platform compatibility for msvcrt.
