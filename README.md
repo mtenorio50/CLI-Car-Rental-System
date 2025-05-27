@@ -1,4 +1,4 @@
- # CAR RENTAL SYSTEM
+# CAR RENTAL SYSTEM
 
 This is a simple Car Rental Management System developed in Python.
 
@@ -6,9 +6,10 @@ This is a simple Car Rental Management System developed in Python.
 
 - User authentication (Admin/Staff)
 - Car management (Add, Edit Rate, Delete, View)
-- Customer management
+- Customer management (Add, Edit, Delete, View)
 - Rent car and log rentals
 - View rental history
+- Role-based access control (Admin/Staff permissions)
 
 ## Setup
 
@@ -17,7 +18,7 @@ This is a simple Car Rental Management System developed in Python.
 3. Install required libraries:
 
    ```bash
-   pip install termcolor msvcrt
+   pip install termcolor prettytable
    ```
    *(Note: msvcrt is Windows-specific. For other OS, you might need a different library or approach for key press detection.)*
 4. Run the `database.py` script to set up the database tables.
@@ -55,3 +56,30 @@ This project is under version control. Commits reflect changes made during devel
 - Implement Viewing Rent History.
 - Refine user interface and add input validation.
 - Consider cross-platform compatibility for msvcrt.
+
+**Latest Updates (2024-05-27):**
+
+- Implemented Customer Management
+  - Add new customers
+  - Edit customer details
+  - Delete customers
+  - View all customers
+  - View customers on rent
+- Implemented Renting a Car
+  - License validation
+  - Car availability check
+  - Rental duration and cost calculation
+  - Status updates for cars and customers
+- Implemented role-based access control
+  - Admin: Full access to all features
+  - Staff: Limited access to certain features
+
+**Next Steps:**
+
+- Implement Car Return functionality
+- Implement Viewing Rent History
+- Add data validation and error handling improvements
+- Add unit tests
+- Consider cross-platform compatibility for msvcrt
+- Add data export functionality
+- Implement reporting features

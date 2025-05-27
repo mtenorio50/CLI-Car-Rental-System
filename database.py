@@ -50,7 +50,7 @@ class DatabaseConnection:
                 year INTEGER CHECK(year > 1900),
                 rate_per_day INTEGER NOT NULL CHECK(rate_per_day > 0),
                 plate_number TEXT NOT NULL UNIQUE,
-                available TEXT DEFAULT 'available',
+                status TEXT DEFAULT 'available',
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now'))
             )
@@ -62,10 +62,14 @@ class DatabaseConnection:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 phone TEXT NOT NULL,
-                email TEXT UNIQUE,
-                address TEXT,
+                email TEXT NOT NULL UNIQUE,
+                address TEXT NOT NULL,
                 license_number TEXT NOT NULL UNIQUE,
-                license_expiry_date TEXT NOT NULL,
+                license_expiry_date TEXT NOT NULL CHECK(
+                    license_expiry_date GLOB '????-??-??' AND
+                    datetime(license_expiry_date) > datetime('now')
+                ),
+                rent_status TEXT NOT NULL DEFAULT 'not on rent',
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now'))
             )

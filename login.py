@@ -22,7 +22,7 @@ class LoginSystem:
         if user:
             print(f"Login successful! Welcome, {user[1]} ({user[3]})")
             press_any_key2()
-            return {'id': user[0], 'username': user[1], 'role': user[3]}
+            return {'id': user[0], 'username': user[1], 'role': user[3]} 
 
         else:
             print("Invalid credentials. Please try again.")
@@ -33,5 +33,5 @@ class LoginSystem:
         os.system('cls')
         print("=== Car Rental System Login ===")
         username = input("Username: ")
-        password = input("Password: ")  # Hides input
+        password = input("Password: ")  
         return self.authenticate(username, password)
