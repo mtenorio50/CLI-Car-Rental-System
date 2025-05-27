@@ -57,7 +57,7 @@ This project is under version control. Commits reflect changes made during devel
 - Refine user interface and add input validation.
 - Consider cross-platform compatibility for msvcrt.
 
-**Latest Updates (2024-05-27):**
+**Update for 2024-05-27:**
 
 - Implemented Customer Management
   - Add new customers
