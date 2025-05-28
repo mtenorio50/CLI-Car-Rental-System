@@ -23,9 +23,9 @@ This is a simple Car Rental Management System developed in Python.
    *(Note: msvcrt is Windows-specific. For other OS, you might need a different library or approach for key press detection.)*
 4. Run the `database.py` script to set up the database tables.
 
-  db has default 2 user:
-  admin/admin 
-  staff/staff
+     db has default 2 user:
+     admin/admin 
+     staff/staff
 
 ## Running the Application
 
