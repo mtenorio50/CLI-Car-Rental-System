@@ -1,6 +1,5 @@
 from models import Car, RentLog, Customer
 from termcolor import colored
-import msvcrt
 import os
 from datetime import datetime, timedelta
 from admin_main import AdminSystem
@@ -33,9 +32,9 @@ class StaffSystem(AdminSystem):
             elif choice == '3':
                 self.rent_car()
             elif choice == '4':
-                pass
+                self.rent_history()
             else:
-                print(colored("Invalid choice! Select from 0-4", 'green', 'on_red'))
+                print(colored("Invalid choice! Select from 0-6", 'green', 'on_red'))
                 self.press_any_key()
 
     def car_management_menu(self):
@@ -93,38 +92,37 @@ class StaffSystem(AdminSystem):
 
             elif choice == '2':
                 print("\n=== 👨🏻‍💼 ADD CUSTOMER 👩🏻‍💼 ===")
-                name = input("Name: ")
-                phone = input("Phone: ")
-                email = input("Email: ")
-                address = input("Address: ")
-                license_number = input("License Number: ")
-
-                while True:
-                    try:
-                        date_str = input("License Exp Date (YYYY-MM-DD): ")
-                        license_expiry_date = datetime.strptime(
-                            date_str, "%Y-%m-%d")
-                        if license_expiry_date < datetime.now():
-                            print(
-                                colored("❌ Error: License expiry date must be in the future", 'red'))
-                            continue
-                        break
-                    except ValueError:
-                        print(
-                            colored("❌ Error: Please enter date in YYYY-MM-DD format", 'red'))
-
+                name = self.validate.validate_customer_input(
+                    "Name: ", 'general')
+                phone = self.validate.validate_customer_input(
+                    "Phone: ", 'general')
+                email = self.validate.validate_customer_input(
+                    "Email: ", 'email')
+                address = self.validate.validate_customer_input(
+                    "Address: ", 'general')
+                license_number = self.validate.validate_customer_input(
+                    "License Number: ", 'license_number').lower()
+                license_expiry_date = self.validate.validate_customer_input(
+                    "License Exp Date (YYYY-MM-DD): ", 'exp_date')
                 rent_status = 'not on rent'
-                if self.customer.add_customer(name, phone, email, address, license_number, license_expiry_date.strftime("%Y-%m-%d"), rent_status):
+
+                if self.customer.add_customer(name, phone, email, address, license_number, license_expiry_date, rent_status):
                     print(colored("Customer registration completed!",
                           'green', 'on_green'))
                 self.press_any_key()
 
             elif choice == '3':
                 print("\n=== 👨🏻‍💼 EDIT CUSTOMER 👩🏻‍💼 ===")
-                license_number = input("Enter License Number to edit: ")
+                license_number = input(
+                    "Enter License Number to edit: ").lower()
                 customer_data, customer_table = self.customer.search_customer(
                     license_number)
-                if customer_data:
+                if customer_data is None:
+                    print("❌ Customer not found with license number:",
+                          license_number)
+                    self.press_any_key2()
+
+                elif customer_data:
                     print("Customer found: ")
                     print(customer_table)
                     print(

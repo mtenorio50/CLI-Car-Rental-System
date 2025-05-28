@@ -65,23 +65,50 @@ class User:
 
     def search_user(self, username):
         try:
+            if not username or not username.strip():
+                return None
+
             self.db.cursor.execute(
                 "SELECT * FROM users WHERE username = ?",
-                (username,)
-            )
+                (username,))
             result = self.db.cursor.fetchone()
+
             if result is None:
                 print("❌ User not found with username:", username)
                 return None
+
             return result
         except Exception as e:
             print("❌ Error searching for user:", e)
             return None
 
+    def search_user_unique(self, username):
+        try:
+            self.db.cursor.execute(
+                "SELECT * FROM users WHERE username = ?",
+                (username,)
+            )
+            result = self.db.cursor.fetchone()
+            return result
+        except Exception as e:
+            print("❌ Error searching for user:", e)
+            return None
+
+    def check_useremail_exists(self, email):
+        try:
+            self.db.cursor.execute(
+                "SELECT * FROM users WHERE email = ?",
+                (email,)
+            )
+            return self.db.cursor.fetchone() is not None
+        except Exception as e:
+            print("❌ Error checking email:", e)
+            return False
+
     def delete_user(self, username):
         try:
             self.db.cursor.execute(
-                "DELETE FROM users WHERE username = ? ", (username,))
+                "DELETE FROM users WHERE username = ?", (username,))
             self.db.connection.commit()
             print("🗑️ User deleted successfully.")
             press_any_key2()
@@ -126,7 +153,7 @@ class Car:
             self.db.cursor.execute(
                 """
                 UPDATE cars
-                SET rate_per_day = ?
+                SET rate_per_day = ?, updated_at = datetime('now')
                 WHERE plate_number = ?
                 """,
                 (rate_per_day, plate_number)
@@ -171,6 +198,18 @@ class Car:
             print("❌ Error searching for car:", e)
             return None
 
+    def search_car_unique(self, plate_number):
+        try:
+            self.db.cursor.execute(
+                "SELECT * FROM cars WHERE plate_number = ?",
+                (plate_number,)
+            )
+            result = self.db.cursor.fetchone()
+            return result
+        except Exception as e:
+            print("❌ Error searching for car:", e)
+            return None
+
     def get_available_cars(self):
         self.db.cursor.execute("SELECT * FROM cars WHERE status = 'available'")
         cars = self.db.cursor.fetchall()
@@ -181,20 +220,20 @@ class Car:
             table.add_row(car)
         return table
 
-    def set_availability(self, car_id, is_available):
-        try:
-            self.db.cursor.execute(
-                "UPDATE cars SET is_available = ? WHERE id = ?",
-                (is_available, car_id)
-            )
-            self.db.connection.commit()
-        except Exception as e:
-            print("❌ Error updating availability:", e)
+    def get_rented_cars(self):
+        self.db.cursor.execute("SELECT * FROM cars WHERE status = 'rented'")
+        cars = self.db.cursor.fetchall()
+        table = PrettyTable()
+        table.field_names = ["ID", "Make", "Model", "Year", "Rate/Day",
+                             "Plate Number", "Status", "Created At", "Updated At"]
+        for car in cars:
+            table.add_row(car)
+        return table
 
     def update_car_status(self, plate_number, status):
         try:
             self.db.cursor.execute(
-                "UPDATE cars SET status = ? WHERE plate_number = ?",
+                "UPDATE cars SET status = ?, updated_at = datetime('now') WHERE plate_number = ?",
                 (status, plate_number)
             )
             self.db.connection.commit()
@@ -268,7 +307,7 @@ class Customer:
             self.db.cursor.execute(
                 """
                 UPDATE customers
-                SET phone = ?, email = ?, address = ?, license_expiry_date = ?
+                SET phone = ?, email = ?, address = ?, license_expiry_date = ?, updated_at = datetime('now')
                 WHERE license_number = ?
                 """,
                 (phone, email, address, license_expiry_date, license_number)
@@ -288,7 +327,7 @@ class Customer:
             print("🗑️ Customer deleted successfully.")
             press_any_key2()
         except Exception as e:
-            print("❌ Error deleting car:", e)
+            print("❌ Error deleting customer:", e)
 
     def get_all_customers(self):
         self.db.cursor.execute("SELECT * FROM customers")
@@ -314,7 +353,7 @@ class Customer:
     def update_customer_status(self, license_number, rent_status):
         try:
             self.db.cursor.execute(
-                "UPDATE customers SET rent_status = ? WHERE license_number = ?",
+                "UPDATE customers SET rent_status = ?, updated_at = datetime('now') WHERE license_number = ?",
                 (rent_status, license_number)
             )
             self.db.connection.commit()
@@ -324,6 +363,32 @@ class Customer:
             print("❌ Error updating customer rent status:", e)
             return False
 
+    def check_customeremail_exists(self, email):
+        try:
+            self.db.cursor.execute(
+                "SELECT * FROM customers WHERE email = ?",
+                (email,)
+            )
+            result = self.db.cursor.fetchone()
+            return result
+
+        except Exception as e:
+            print("❌ Error checking email:", e)
+            return None
+
+    def search_customer_unique(self, license_number):
+        try:
+            self.db.cursor.execute(
+                "SELECT * FROM customers WHERE license_number = ?",
+                (license_number,)
+            )
+            result = self.db.cursor.fetchone()
+            return result
+
+        except Exception as e:
+            print("❌ Error searching for customer:", e)
+            return None
+
 
 class RentLog:
     def __init__(self):
@@ -331,7 +396,9 @@ class RentLog:
 
     def log_rental(self, license_number, plate_number, rent_date, return_date, total_cost):
         try:
-            rent_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if not rent_date:
+                rent_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
             self.db.cursor.execute(
                 "INSERT INTO rent_log (license_number, plate_number, rent_date, return_date, total_cost) VALUES (?, ?, ?, ?, ?)",
                 (license_number, plate_number, rent_date, return_date, total_cost)
@@ -342,15 +409,60 @@ class RentLog:
             )
             self.db.connection.commit()
             print("✅ Rental logged successfully.")
+
+            return True
         except Exception as e:
             print("❌ Error logging rental:", e)
+            return False
+
+    def search_renter(self, license_number, plate_number, status):
+        try:
+            self.db.cursor.execute(
+                "SELECT * FROM rent_log WHERE license_number = ? AND plate_number = ? AND status = ?",
+                (license_number, plate_number, status)
+            )
+            result = self.db.cursor.fetchone()
+
+            if result is None:
+                print("❌ Renter not found with license number and plate number:",
+                      license_number, plate_number)
+                return None, None
+
+            # Create table for display
+            table = PrettyTable()
+            table.field_names = ["ID", "License Number", "Plate Number", "Rent Date", "Return Date",
+                                 "Total Cost", "Status", "Remarks", "Created At", "Updated At"]
+            table.add_row(result)
+
+            return result, table
+        except Exception as e:
+            print("❌ Error searching for renter:", e)
+            return None, None
+
+    def update_rent_status(self, status, remarks, license_number):
+        try:
+            self.db.cursor.execute(
+                "UPDATE rent_log SET status = ?, remarks = ?, updated_at = datetime('now') WHERE license_number = ?",
+                (status, remarks, license_number)
+            )
+            self.db.connection.commit()
+            return True
+        except Exception as e:
+            print("❌ Error updating customer rent status:", e)
+            return False
 
     def get_rental_history(self):
         self.db.cursor.execute("""
-            SELECT r.id, c.name, ca.make || ' ' || ca.model, r.rent_date, r.return_date
+            SELECT r.id, c.license_number, c.name, ca.plate_number, ca.make, ca.model, r.rent_date, r.return_date, r.total_cost, r.status, r.remarks
             FROM rent_log r
-            JOIN customers c ON r.customer_id = c.id
-            JOIN cars ca ON r.car_id = ca.id
+            JOIN customers c ON r.license_number = c.license_number
+            JOIN cars ca ON r.plate_number = ca.plate_number
             ORDER BY r.rent_date DESC
         """)
-        return self.db.cursor.fetchall()
+        rent_table = self.db.cursor.fetchall()
+        table = PrettyTable()
+        table.field_names = ["ID", "License Number", "Name", "Plate Number", "Car Make", "Car Model",
+                             "Rent Date", "Return Date", "Total Cost", "Status", "Remarks"]
+        for r in rent_table:
+            table.add_row(r)
+        return table

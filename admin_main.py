@@ -2,6 +2,7 @@
 from database import DatabaseConnection
 from models import Car, RentLog, Customer, User
 from termcolor import colored
+from utils import Validate
 import msvcrt
 import os
 from datetime import datetime, timedelta
@@ -14,6 +15,7 @@ class AdminSystem:
         self.customer = Customer()
         self.user = User()
         self.rent_log = RentLog()
+        self.validate = Validate(self.user, self.car, self.customer)
 
     def press_any_key(self):
         print(colored("\nPress any key to continue...", 'yellow', 'on_blue'))
@@ -51,9 +53,9 @@ class AdminSystem:
             elif choice == '4':
                 self.rent_car()
             elif choice == '5':
-                pass
+                self.return_car()
             elif choice == '6':
-                pass
+                self.rent_history()
             else:
                 print(colored("Invalid choice! Select from 0-6", 'green', 'on_red'))
                 self.press_any_key()
@@ -79,19 +81,19 @@ class AdminSystem:
 
             elif choice == '2':
                 print("\n=== 🧑🏼‍💻 ADD USER 🧑🏼‍💻 ===")
-                username = input("Username: ")
-                password = input("Password: ")
-                while True:
-                    role = input("Role - admin or staff: ").lower()
-                    if role in ['admin', 'staff']:
-                        break
-                    print(
-                        colored("❌ Error: Role must be either 'admin' or 'staff'", 'red'))
-                name = input("Name: ")
-                email = input("Email: ")
-                phone = input("Phone: ")
+
+                username = self.validate.validate_input(
+                    "Username: ", 'username')
+                password = self.validate.validate_input(
+                    "Password: ", 'general')
+                role = self.validate.validate_input(
+                    "Role - admin or staff: ", 'role')
+                name = self.validate.validate_input("Name: ", 'general')
+                email = self.validate.validate_input("Email: ", 'email')
+                phone = self.validate.validate_input("Phone: ", 'phone')
+
                 if self.user.add_user(username, password, role, name, email, phone):
-                    print(colored("User registration completed!", 'green', 'on_green'))
+                    print(colored("✅ User registration completed!", 'green'))
                 self.press_any_key()
 
             elif choice == '3':
@@ -99,15 +101,26 @@ class AdminSystem:
                 username = input("Enter Username to edit: ")
                 user_data = self.user.search_user(username)
                 if user_data:
-                    print("\nLeave blank to keep current value:")
+                    print("\nLeave blank to keep current value except for role:")
                     new_password = input("New Password: ")
+                    if user_data[1] == 'admin':
+                        print("⚠️ Warning: Cannot change role of username admin")
+                        new_role = 'admin'  # Keep the role as admin
+                    else:
+                        while True:
+                            new_role = input(
+                                "New Role - admin or staff: ").lower()
+                            if new_role in ['admin', 'staff']:
+                                break
+                            print(
+                                colored("❌ Error: Role must be either 'admin' or 'staff'", 'red'))
+                    # Email validation
                     while True:
-                        new_role = input("New Role - admin or staff: ").lower()
-                        if new_role in ['admin', 'staff', ' ']:
-                            break
-                        print(
-                            colored("❌ Error: Role must be either 'admin' or 'staff'", 'red'))
-                    new_email = input("New Email: ")
+                        new_email = input("New Email: ").strip()
+                        if self.user.check_useremail_exists(new_email):
+                            print(colored("❌ Error: Email already exists!", 'red'))
+                            continue
+                        break
                     new_phone = input("New Phone: ")
                     self.user.edit_user(
                         username, new_password, new_role, new_email, new_phone)
@@ -117,13 +130,33 @@ class AdminSystem:
 
             elif choice == '4':
                 print("\n=== 🧑🏼‍💻 DELETE USER 🧑🏼‍💻 ===")
-                username = input("Enter Username to delete: ")
-                email = input("Enter User Email: ")
-                user_data = self.user.search_user(username, email)
-                if user_data:
-                    self.user.delete_user(username, email)
-                else:
-                    self.press_any_key2()
+                while True:
+                    username = input("Enter Username to delete: ")
+                    if not username or not username.strip():
+                        print("❌ Error: Username can not be empty!")
+                        self.press_any_key2()
+                        break
+                    if username == 'admin':
+                        print("⚠️ Warning: Can not delete user admin! ")
+                        self.press_any_key2()
+                        break
+                    user_data = self.user.search_user(username)
+                    if user_data:
+                        print("User", username, "found!")
+                        email = input("Enter user email to delete user: ")
+                        if not email or not email.strip():
+                            print("❌ Error: Email is empty!")
+                            self.press_any_key2()
+                            break
+                        # Email is at index 4 in the users table
+                        if email == user_data[5]:
+                            self.user.delete_user(username)
+                        else:
+                            print("❌ Error: Username and Email does not match!")
+                            self.press_any_key2()
+                            break
+                    else:
+                        self.press_any_key2()
 
             elif choice == '0':
                 break
@@ -141,6 +174,7 @@ class AdminSystem:
         3. Edit Car
         4. Delete Car
         5. View Available Cars
+        6. View Rented Cars
         0. Back to Dashboard""")
 
             choice = input("Choose an option: ")
@@ -154,11 +188,13 @@ class AdminSystem:
 
             elif choice == '2':
                 print("\n=== 🚗 ADD CAR 🚗 ===")
-                make = input("Make: ")
-                model = input("Model: ")
-                year = input("Year: ")
-                rate_per_day = input("Rate/Day: ")
-                plate_number = input("Registration Number: ").lower()
+                make = self.validate.validate_car_input("Make: ", 'general')
+                model = self.validate.validate_car_input("Model: ", 'general')
+                year = self.validate.validate_car_input("Year: ", 'year')
+                rate_per_day = self.validate.validate_car_input(
+                    "Rate/Day: ", 'rate')
+                plate_number = self.validate.validate_car_input(
+                    "Registration Number: ", 'plate_number')
                 status = 'available'
                 if self.car.add_car(make, model, year, rate_per_day, plate_number, status):
                     print(colored("Car registration completed!", 'green', 'on_green'))
@@ -169,9 +205,15 @@ class AdminSystem:
                 plate_number = input("Enter Plate Number to edit: ")
                 car_data = self.car.search_car(plate_number)
                 if car_data:
-                    rate_per_day = input("New Rate Per Day: ")
-                    self.car.edit_car(plate_number, rate_per_day)
-                    self.press_any_key2()
+                    if car_data[6] == 'rented':  # Check if car status is 'rented'
+                        print(
+                            "❌ Error: Cannot delete a car that is currently rented!")
+                        self.press_any_key2()
+                    else:
+                        rate_per_day = self.validate.validate_car_input(
+                            "Rate/Day: ", 'rate')
+                        self.car.edit_car(plate_number, rate_per_day)
+                        self.press_any_key2()
                 else:
                     self.press_any_key2()
 
@@ -180,7 +222,13 @@ class AdminSystem:
                 plate_number = input("Enter Car Plate Number to delete: ")
                 car_data = self.car.search_car(plate_number)
                 if car_data:
-                    self.car.delete_car(plate_number)
+                    if car_data[6] == 'rented':  # Check if car status is 'rented'
+                        print(
+                            "❌ Error: Cannot delete a car that is currently rented!")
+                        self.press_any_key2()
+
+                    else:
+                        self.car.delete_car(plate_number)
                 else:
                     self.press_any_key2()
 
@@ -188,8 +236,15 @@ class AdminSystem:
                 break
 
             elif choice == '5':
-                print("\n=== 🚗 VIEW CAR/S 🚗 ===")
+                print("\n=== 🚗 VIEW AVAILABLE CAR/S 🚗 ===")
                 cars_table = self.car.get_available_cars()
+                print("\n--- All Available Cars ---")
+                print(cars_table)
+                self.press_any_key()
+
+            elif choice == '6':
+                print("\n=== 🚗 VIEW RENTED CAR/S 🚗 ===")
+                cars_table = self.car.get_rented_cars()
                 print("\n--- All Available Cars ---")
                 print(cars_table)
                 self.press_any_key()
@@ -223,38 +278,37 @@ class AdminSystem:
 
             elif choice == '2':
                 print("\n=== 👨🏻‍💼 ADD CUSTOMER 👩🏻‍💼 ===")
-                name = input("Name: ")
-                phone = input("Phone: ")
-                email = input("Email: ")
-                address = input("Address: ")
-                license_number = input("License Number: ")
-
-                while True:
-                    try:
-                        date_str = input("License Exp Date (YYYY-MM-DD): ")
-                        license_expiry_date = datetime.strptime(
-                            date_str, "%Y-%m-%d")
-                        if license_expiry_date < datetime.now():
-                            print(
-                                colored("❌ Error: License expiry date must be in the future", 'red'))
-                            continue
-                        break
-                    except ValueError:
-                        print(
-                            colored("❌ Error: Please enter date in YYYY-MM-DD format", 'red'))
-
+                name = self.validate.validate_customer_input(
+                    "Name: ", 'general')
+                phone = self.validate.validate_customer_input(
+                    "Phone: ", 'general')
+                email = self.validate.validate_customer_input(
+                    "Email: ", 'email')
+                address = self.validate.validate_customer_input(
+                    "Address: ", 'general')
+                license_number = self.validate.validate_customer_input(
+                    "License Number: ", 'license_number').lower()
+                license_expiry_date = self.validate.validate_customer_input(
+                    "License Exp Date (YYYY-MM-DD): ", 'exp_date')
                 rent_status = 'not on rent'
-                if self.customer.add_customer(name, phone, email, address, license_number, license_expiry_date.strftime("%Y-%m-%d"), rent_status):
+
+                if self.customer.add_customer(name, phone, email, address, license_number, license_expiry_date, rent_status):
                     print(colored("Customer registration completed!",
                           'green', 'on_green'))
                 self.press_any_key()
 
             elif choice == '3':
                 print("\n=== 👨🏻‍💼 EDIT CUSTOMER 👩🏻‍💼 ===")
-                license_number = input("Enter License Number to edit: ")
+                license_number = input(
+                    "Enter License Number to edit: ").lower()
                 customer_data, customer_table = self.customer.search_customer(
                     license_number)
-                if customer_data:
+                if customer_data is None:
+                    print("❌ Customer not found with license number:",
+                          license_number)
+                    self.press_any_key2()
+
+                elif customer_data:
                     print("Customer found: ")
                     print(customer_table)
                     print(
@@ -288,13 +342,17 @@ class AdminSystem:
             elif choice == '4':
                 print("\n=== 👨🏻‍💼 DELETE CUSTOMER 👩🏻‍💼 ===")
                 license_number = input(
-                    "Enter Customer License Number to delete: ")
+                    "Enter Customer License Number to delete: ").lower()
                 customer_data, customer_table = self.customer.search_customer(
                     license_number)
 
                 if customer_data is None:
                     print("❌ Customer not found with license number:",
                           license_number)
+                    self.press_any_key2()
+                elif customer_data[7] == 'on rent':  # Check if customer is on rent
+                    print(
+                        colored("❌ Cannot delete customer who is currently on rent!", 'red'))
                     self.press_any_key2()
                 else:
                     print(customer_table)
@@ -305,9 +363,10 @@ class AdminSystem:
                         self.customer.delete_customer(license_number)
                     else:
                         print("Delete Customer cancelled.. ")
+                        self.press_any_key2()
 
             elif choice == '5':
-                print("\n=== 👨��‍💼 VIEW ALL CUSTOMER ON RENT 👩🏻‍💼 ===")
+                print("\n=== 👨🏻‍💼 VIEW ALL CUSTOMER ON RENT 👩🏻‍💼 ===")
                 customers_table = self.customer.get_onrent_customers()
                 print("\n--- All Available Cars ---")
                 print(customers_table)
@@ -321,12 +380,11 @@ class AdminSystem:
         print("\n=== 🚗 RENT A CAR 🚗 ===")
 
         # Step 1: Get customer details
-        license_number = input("Enter Customer License Number: ")
+        license_number = input("Enter Customer License Number: ").lower()
         customer_data, customer_table = self.customer.search_customer(
             license_number)
 
         if customer_data is None:
-            print("❌ Customer not found!")
             self.press_any_key2()
             return
 
@@ -354,7 +412,6 @@ class AdminSystem:
         car_data = self.car.search_car(plate_number)
 
         if car_data is None:
-            print("❌ Car not found!")
             self.press_any_key2()
             return
 
@@ -385,7 +442,7 @@ class AdminSystem:
         print(f"Duration: {days} days")
         print(f"Total Cost: ${total_cost:.2f}")
 
-        conf = input("\nConfirm rental? (y/n): ")
+        conf = input("\nConfirm rental? Press y to proceed: ")
 
         if conf.lower() == 'y':
             # Create rental record
@@ -405,3 +462,43 @@ class AdminSystem:
             print("Rental cancelled.")
 
         self.press_any_key2()
+
+    def return_car(self):
+        print("\n=== 🚗 RETURN A CAR 🚗 ===")
+        # Step 1: Get license and plate number
+        license_number = input("Enter Customer License Number: ").lower()
+        plate_number = input("Enter Rented Plate Number: ").lower()
+
+        renter_result, renter_table = self.rent_log.search_renter(
+            license_number, plate_number, status='rented')
+
+        if renter_result is None:
+            self.press_any_key2()
+            return
+
+        # Display renter information
+        print("\nRental Information:")
+        print(renter_table)
+
+        remarks = input("Remarks: ")
+        conf = input("\nConfirm car return? Press y to confirm return: ")
+
+        if conf.lower() == 'y':
+            # Update rental record
+            if (self.car.update_car_status(plate_number, 'available') and
+                self.customer.update_customer_status(license_number, 'not on rent') and
+                    self.rent_log.update_rent_status('returned', remarks, license_number)):
+                print("✅ Car return successfully!")
+            else:
+                print("❌ Failed to process car return!")
+        else:
+            print("Return cancelled.")
+
+        self.press_any_key2()
+
+    def rent_history(self):
+        print("\n=== 🚗 VIEW RENTED CAR/S 🚗 ===")
+        rent_table = self.rent_log.get_rental_history()
+        print("\n--- Rent History ---")
+        print(rent_table)
+        self.press_any_key()

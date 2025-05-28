@@ -79,17 +79,19 @@ class DatabaseConnection:
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS rent_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer_id INTEGER NOT NULL,
-                car_id INTEGER NOT NULL,
+                license_number TEXT NOT NULL,
+                renter_name TEXT NOT NULL,
+                renter_email TEXT NOT NULL,
+                plate_number TEXT NOT NULL,
+                car_brand TEXT NOT NULL,
+                car_model TEXT NOT NULL,             
                 rent_date TEXT NOT NULL,
                 return_date TEXT,
-                total_amount INTEGER,
+                total_cost INTEGER,
                 status TEXT CHECK(status IN ('rented', 'returned')) DEFAULT 'rented',
                 remarks TEXT,
                 created_at TEXT DEFAULT (datetime('now')),
-                updated_at TEXT DEFAULT (datetime('now')),
-                FOREIGN KEY(customer_id) REFERENCES customers(id),
-                FOREIGN KEY(car_id) REFERENCES cars(id)
+                updated_at TEXT DEFAULT (datetime('now'))
             )
         ''')
 

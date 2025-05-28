@@ -23,6 +23,10 @@ This is a simple Car Rental Management System developed in Python.
    *(Note: msvcrt is Windows-specific. For other OS, you might need a different library or approach for key press detection.)*
 4. Run the `database.py` script to set up the database tables.
 
+  db has default 2 user:
+  admin/admin 
+  staff/staff
+
 ## Running the Application
 
 Run the `main.py` script:
@@ -37,27 +41,29 @@ Follow the on-screen prompts to login as an admin or staff member and manage the
 
 This project is under version control. Commits reflect changes made during development, including bug fixes and feature implementations.
 
-**Last Updated:** 2024-05-27
+**Last Updated:** 2025-05-28
 
 ## Progress
 
-- Implemented user authentication (Admin/Staff).
-- Implemented basic car management (Add, Edit Rate, Delete, View).
-- Added car search by plate number with error handling.
-- Adjusted car editing to focus on rate per day.
-- Setup basic database structure.
-- Created initial README file.
-- Updated delete car functionality to use plate number.
+**Update for 2025-05-28:**
 
-**Next Steps:**
+- Enhanced Data Management
+  - Added timestamp tracking for all records
+  - Updated_at field now properly updates on all modifications
+  - Improved data integrity with proper timestamp handling
+- Improved Customer Management
+  - Added validation to prevent deletion of customers on rent
+  - Enhanced email validation to prevent duplicates
+  - Added proper error handling for customer operations
+- Code Improvements
+  - Refactored database operations for better consistency
+  - Improved error messages and user feedback
+  - Enhanced validation logic across all operations
+- Staff Page Improvements
+  - Completed staff functionality
 
-- Implement Customer Management.
-- Implement Renting a Car.
-- Implement Viewing Rent History.
-- Refine user interface and add input validation.
-- Consider cross-platform compatibility for msvcrt.
 
-**Update for 2024-05-27:**
+**Update for 2025-05-27:**
 
 - Implemented Customer Management
   - Add new customers
@@ -74,12 +80,12 @@ This project is under version control. Commits reflect changes made during devel
   - Admin: Full access to all features
   - Staff: Limited access to certain features
 
-**Next Steps:**
+**Update for 2024-05-26:**
 
-- Implement Car Return functionality
-- Implement Viewing Rent History
-- Add data validation and error handling improvements
-- Add unit tests
-- Consider cross-platform compatibility for msvcrt
-- Add data export functionality
-- Implement reporting features
+- Initial Project Setup
+  - Created basic project structure
+  - Set up database schema
+  - Implemented user authentication system
+  - Added basic car management features
+  - Created initial documentation
+
