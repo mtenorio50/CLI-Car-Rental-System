@@ -17,6 +17,7 @@ def press_any_key():
 def main():
     # Initialize DB and ensure tables exist
     db = DatabaseConnection()
+    db.create_tables()
     os.system('cls')
 
     while True:
