@@ -95,6 +95,24 @@ class DatabaseConnection:
             )
         ''')
 
+        # Create booking requests table
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS booking_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                license_number TEXT NOT NULL,
+                plate_number TEXT NOT NULL,
+                start_date TEXT NOT NULL,
+                end_date TEXT NOT NULL,
+                total_cost INTEGER NOT NULL,
+                status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+                remarks TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (license_number) REFERENCES customers(id),
+                FOREIGN KEY (plate_number) REFERENCES cars(id)
+            )
+        ''')
+
         self.connection.commit()
 
 

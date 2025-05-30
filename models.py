@@ -399,17 +399,47 @@ class RentLog:
             if not rent_date:
                 rent_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+            # Get customer name
             self.db.cursor.execute(
-                "INSERT INTO rent_log (license_number, plate_number, rent_date, return_date, total_cost) VALUES (?, ?, ?, ?, ?)",
-                (license_number, plate_number, rent_date, return_date, total_cost)
+                "SELECT name FROM customers WHERE license_number = ?",
+                (license_number,)
             )
+            customer_result = self.db.cursor.fetchone()
+            if not customer_result:
+                print("❌ Customer not found!")
+                return False
+            customer_name = customer_result[0]
+
+            # Get car details
+            self.db.cursor.execute(
+                "SELECT make, model FROM cars WHERE plate_number = ?",
+                (plate_number,)
+            )
+            car_result = self.db.cursor.fetchone()
+            if not car_result:
+                print("❌ Car not found!")
+                return False
+            car_make, car_model = car_result
+
+            # Insert rental record with all details
+            self.db.cursor.execute(
+                """
+                INSERT INTO rent_log 
+                (license_number, customer_name, plate_number, car_make, car_model, 
+                rent_date, return_date, total_cost, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'rented')
+                """,
+                (license_number, customer_name, plate_number, car_make, car_model,
+                 rent_date, return_date, total_cost)
+            )
+
+            # Update car status
             self.db.cursor.execute(
                 "UPDATE cars SET status = 'rented' WHERE plate_number = ?",
                 (plate_number,)
             )
             self.db.connection.commit()
             print("✅ Rental logged successfully.")
-
             return True
         except Exception as e:
             print("❌ Error logging rental:", e)
@@ -466,3 +496,108 @@ class RentLog:
         for r in rent_table:
             table.add_row(r)
         return table
+
+
+class BookingLog:
+    def __init__(self):
+        self.db = DatabaseConnection()
+
+    def get_available_cars(self):
+        """Get all available cars"""
+        try:
+            self.db.cursor.execute('''
+                SELECT id, make, model, year, rate_per_day, plate_number 
+                FROM cars 
+                WHERE status = 'available'
+            ''')
+            return self.db.cursor.fetchall()
+        except Exception as e:
+            print("❌ Error fetching available cars:", e)
+            return []
+
+    def get_customer_bookings(self, license_number):
+        """Get all bookings for a customer"""
+        try:
+            self.db.cursor.execute('''
+                SELECT br.id, c.make, c.model, br.start_date, br.end_date, 
+                       br.total_cost, br.status, br.remarks
+                FROM booking_requests br
+                JOIN cars c ON br.plate_number = c.plate_number
+                WHERE br.license_number = ?
+                ORDER BY br.created_at DESC
+            ''', (license_number,))
+            return self.db.cursor.fetchall()
+        except Exception as e:
+            print("❌ Error fetching customer bookings:", e)
+            return []
+
+    def get_active_rental(self, license_number):
+        """Get active rental for a customer"""
+        try:
+            self.db.cursor.execute('''
+                SELECT rl.plate_number, rl.car_make, rl.car_model, 
+                       rl.rent_date, rl.return_date, rl.total_cost
+                FROM rent_log rl
+                WHERE rl.license_number = ? AND rl.status = 'rented'
+            ''', (license_number,))
+            return self.db.cursor.fetchone()
+        except Exception as e:
+            print("❌ Error fetching active rental:", e)
+            return None
+
+    def check_car_availability(self, plate_number, start_date, end_date):
+        # Check if car is available for the given dates
+        try:
+            self.db.cursor.execute('''
+                SELECT COUNT(*) FROM booking_requests 
+                WHERE plate_number = ? 
+                AND status = 'pending'
+                AND (
+                    (start_date <= ? AND end_date >= ?) OR
+                    (start_date <= ? AND end_date >= ?) OR
+                    (start_date >= ? AND end_date <= ?)
+                )
+            ''', (plate_number, end_date, start_date, start_date, end_date, start_date, end_date))
+            return self.db.cursor.fetchone()[0] == 0
+        except Exception as e:
+            print("❌ Error checking car availability:", e)
+            return False
+
+    def get_car_details(self, plate_number):
+        """Get car details including rate"""
+        try:
+            self.db.cursor.execute('''
+                SELECT id, make, model, rate_per_day, status 
+                FROM cars 
+                WHERE plate_number = ?
+            ''', (plate_number,))
+            return self.db.cursor.fetchone()
+        except Exception as e:
+            print("❌ Error fetching car details:", e)
+            return None
+
+    def calculate_booking_cost(self, rate_per_day, start_date, end_date):
+        """Calculate total cost for booking"""
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            end = datetime.strptime(end_date, "%Y-%m-%d")
+            days = (end - start).days + 1
+            return rate_per_day * days
+        except Exception as e:
+            print("❌ Error calculating booking cost:", e)
+            return None
+
+    def create_booking_request(self, license_number, plate_number, start_date, end_date, total_cost):
+        """Create a new booking request"""
+        try:
+            self.db.cursor.execute('''
+                INSERT INTO booking_requests 
+                (license_number, plate_number, start_date, end_date, total_cost, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ''', (license_number, plate_number, start_date, end_date, total_cost))
+
+            self.db.connection.commit()
+            return True
+        except Exception as e:
+            print("❌ Error creating booking request:", e)
+            return False

@@ -1,17 +1,12 @@
-
 from database import DatabaseConnection
 import os
-
+from admin_main import AdminSystem
 import msvcrt
 from termcolor import colored
+import sys
 
 
-def press_any_key2():
-    print(colored("\nPress any key to continue...", 'yellow', 'on_blue'))
-    msvcrt.getch()  # Wait for any key press
-
-
-class LoginSystem:
+class LoginSystem(AdminSystem):
     def __init__(self):
         self.db = DatabaseConnection()
 
@@ -21,17 +16,16 @@ class LoginSystem:
         user = self.db.cursor.fetchone()
         if user:
             print(f"Login successful! Welcome, {user[1]} ({user[3]})")
-            press_any_key2()
-            return {'id': user[0], 'username': user[1], 'role': user[3]} 
-
+            self.press_any_key2()
+            return {'id': user[0], 'username': user[1], 'role': user[3]}
         else:
-            print("Invalid credentials. Please try again.")
-            press_any_key2()
+            print(colored("Invalid credentials!", "red"))
+            self.press_any_key()
             return None
 
     def login_prompt(self):
         os.system('cls')
-        print("=== Car Rental System Login ===")
+        print("\n=== Car Rental System Login ===")
         username = input("Username: ")
-        password = input("Password: ")  
+        password = input("Password: ")
         return self.authenticate(username, password)

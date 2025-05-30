@@ -3,9 +3,11 @@ from database import DatabaseConnection
 from models import Car, RentLog, Customer, User
 from termcolor import colored
 from utils import Validate
+from datetime import datetime, timedelta
+from prettytable import PrettyTable
 import msvcrt
 import os
-from datetime import datetime, timedelta
+import sqlite3
 
 
 class AdminSystem:
@@ -35,12 +37,13 @@ class AdminSystem:
     4. Rent a Car
     5. Car Return
     6. View Rent History
+    7. Manage Bookings
     0. Logout""")
 
     def admin_menu_choice(self):
         while True:
             self.show_admin_dashboard()
-            choice = input("Enter your choice 0-6: ")
+            choice = input("Enter your choice 0-7: ")
             if choice == '0':
                 print(colored("Exiting the program...", 'green', 'on_red'))
                 exit()
@@ -56,8 +59,10 @@ class AdminSystem:
                 self.return_car()
             elif choice == '6':
                 self.rent_history()
+            elif choice == '7':
+                self.booking_management_menu()
             else:
-                print(colored("Invalid choice! Select from 0-6", 'green', 'on_red'))
+                print(colored("Invalid choice! Select from 0-7", 'green', 'on_red'))
                 self.press_any_key()
 
     def staff_management_menu(self):
@@ -501,4 +506,328 @@ class AdminSystem:
         rent_table = self.rent_log.get_rental_history()
         print("\n--- Rent History ---")
         print(rent_table)
+        self.press_any_key()
+
+    def booking_management_menu(self):
+        while True:
+            os.system('cls')
+            print("""\n=== 📋 BOOKING MANAGEMENT MENU 📋 ===
+        1. View Pending Bookings
+        2. Approve Booking
+        3. Reject Booking
+        4. View All Bookings
+        0. Back to Dashboard""")
+
+            choice = input("Choose an option: ")
+
+            if choice == '1':
+                self.view_pending_bookings()
+            elif choice == '2':
+                self.approve_booking()
+            elif choice == '3':
+                self.reject_booking()
+            elif choice == '4':
+                self.view_all_bookings()
+            elif choice == '0':
+                break
+            else:
+                print(colored("Invalid choice! Select from 0-4", 'red'))
+                self.press_any_key()
+
+    def view_pending_bookings(self):
+        print("\n=== 📋 PENDING BOOKINGS 📋 ===")
+        self.db.cursor.execute('''
+            SELECT * FROM booking_requests WHERE status = 'pending'
+        ''')
+
+        bookings = self.db.cursor.fetchall()
+        if not bookings:
+            print(colored("No pending bookings found.", "yellow"))
+            self.press_any_key()
+            return
+
+        table = PrettyTable()
+        table.field_names = ["ID", "License Number", "Plate Number", "Start Date",
+                             "End Date", "Cost", "Status", "Remarks", "Created At", "Updated At"]
+        for booking in bookings:
+            table.add_row(booking)
+        print(table)
+        self.press_any_key()
+
+    def approve_booking(self):
+        print("\n=== ✅ APPROVE BOOKING ✅ ===")
+        print("\n=== ✅PENDING BOOKING LIST ✅ ===")
+        self.db.cursor.execute('''
+            SELECT * FROM booking_requests WHERE status = 'pending'
+        ''')
+        bookings = self.db.cursor.fetchall()
+        table = PrettyTable()
+        table.field_names = ["ID", "License Number", "Plate Number", "Start Date",
+                             "End Date", "Cost", "Status", "Remarks", "Created At", "Updated At"]
+        for booking in bookings:
+            table.add_row(booking)
+        print(table)
+
+        if not bookings:
+            print(colored("❌ No pending bookings found!", "red"))
+            self.press_any_key()
+            return
+
+        booking_id = input("Enter booking ID to approve: ")
+
+
+        try:
+            # First check if the booking exists at all
+            self.db.cursor.execute('''
+                SELECT id, status FROM booking_requests WHERE id = ?
+            ''', (booking_id,))
+
+            booking_check = self.db.cursor.fetchone()
+            if not booking_check:
+                print(
+                    colored(f"❌ No booking found with ID: {booking_id}", "red"))
+                self.press_any_key()
+                return
+
+
+            # Get booking details with all necessary information
+            self.db.cursor.execute('''
+                SELECT 
+                    br.id,
+                    br.license_number,
+                    br.plate_number,
+                    br.start_date,
+                    br.end_date,
+                    br.total_cost,
+                    br.status,
+                    br.remarks,
+                    c.name as customer_name,
+                    car.make as car_make,
+                    car.model as car_model
+                FROM booking_requests br
+                LEFT JOIN customers c ON br.license_number = c.license_number
+                LEFT JOIN cars car ON br.plate_number = car.plate_number
+                WHERE br.id = ? AND br.status = 'pending'
+            ''', (booking_id,))
+
+            booking = self.db.cursor.fetchone()
+            if not booking:
+                print(colored("❌ Booking not found or already processed!", "red"))
+                self.press_any_key()
+                return
+
+            # Extract booking data
+            license_number = booking[1]  # license_number
+            plate_number = booking[2]    # plate_number
+            start_date = booking[3]      # start_date
+            end_date = booking[4]        # end_date
+            total_cost = booking[5]      # cost
+            customer_name = booking[8]   # customer_name from join
+            car_make = booking[9]        # car_make from join
+            car_model = booking[10]      # car_model from join
+
+            # Update booking status
+            self.db.cursor.execute('''
+                UPDATE booking_requests 
+                SET status = 'approved', updated_at = datetime('now')
+                WHERE id = ?
+            ''', (booking_id,))
+
+            # Update car status
+            self.db.cursor.execute('''
+                UPDATE cars 
+                SET status = 'rented', updated_at = datetime('now')
+                WHERE plate_number = ?
+            ''', (plate_number,))
+
+            # Update customer status
+            self.db.cursor.execute('''
+                UPDATE customers 
+                SET rent_status = 'on rent', updated_at = datetime('now')
+                WHERE license_number = ?
+            ''', (license_number,))
+
+            # Create rent log entry
+            self.db.cursor.execute('''
+                INSERT INTO rent_log 
+                (license_number, customer_name, plate_number, car_make, car_model, 
+                rent_date, return_date, total_cost, status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'rented')
+            ''', (license_number, customer_name, plate_number, car_make, car_model,
+                  start_date, end_date, total_cost))
+
+            self.db.connection.commit()
+            print(colored("✅ Booking approved successfully!", "green"))
+
+        except sqlite3.Error as e:
+            print(colored(f"❌ Database error: {str(e)}", "red"))
+            self.db.connection.rollback()
+        except Exception as e:
+            print(colored(f"❌ An error occurred: {str(e)}", "red"))
+            self.db.connection.rollback()
+
+        self.press_any_key()
+
+    def reject_booking(self):
+        print("\n=== ❌ REJECT BOOKING ❌ ===")
+        print("\n=== ❌ PENDING BOOKING LIST❌ ===")
+        self.db.cursor.execute('''
+            SELECT * FROM booking_requests WHERE status = 'pending'
+        ''')
+        bookings = self.db.cursor.fetchall()
+        table = PrettyTable()
+        table.field_names = ["ID", "License Number", "Plate Number", "Start Date",
+                             "End Date", "Cost", "Status", "Remarks", "Created At", "Updated At"]
+        for booking in bookings:
+            table.add_row(booking)
+        print(table)
+        booking_id = input("Enter booking ID to reject: ")
+        remarks = input("Enter rejection reason: ")
+
+        try:
+            self.db.cursor.execute('''
+                UPDATE booking_requests 
+                SET status = 'rejected', remarks = ?, updated_at = datetime('now')
+                WHERE id = ? AND status = 'pending'
+            ''', (remarks, booking_id))
+
+            if self.db.cursor.rowcount > 0:
+                self.db.connection.commit()
+                print(colored("Booking rejected successfully!", "green"))
+            else:
+                print(colored("Booking not found or already processed!", "red"))
+
+        except sqlite3.Error as e:
+            print(colored(f"Database error: {str(e)}", "red"))
+            self.db.connection.rollback()
+
+        self.press_any_key()
+
+    def view_all_bookings(self):
+        print("\n=== 📋 ALL BOOKINGS 📋 ===")
+        self.db.cursor.execute('''
+            SELECT * FROM booking_requests
+        ''')
+
+        bookings = self.db.cursor.fetchall()
+        if not bookings:
+            print(colored("No bookings found.", "yellow"))
+            self.press_any_key()
+            return
+
+        table = PrettyTable()
+        table.field_names = ["ID", "License Number", "Plate Number", "Start Date",
+                             "End Date", "Cost", "Status", "Remarks", "Created At", "Updated At"]
+        for booking in bookings:
+            table.add_row(booking)
+        print(table)
+        self.press_any_key()
+
+    def add_booking(self):
+        print("\n=== 📋 ADD NEW BOOKING 📋 ===")
+
+        try:
+            # Get customer details
+            license_number = input("Enter Customer License Number: ").lower()
+            customer_data, customer_table = self.customer.search_customer(
+                license_number)
+
+            if customer_data is None:
+                print(colored("❌ Customer not found!", "red"))
+                self.press_any_key()
+                return
+
+            # Check if customer is already renting
+            if customer_data[7] == 'on rent':  # rent_status column
+                print(colored("❌ Customer already has an active rental!", "red"))
+                self.press_any_key()
+                return
+
+            # Check if license is valid
+            license_expiry = datetime.strptime(
+                customer_data[6], "%Y-%m-%d")  # license_expiry_date column
+            if license_expiry < datetime.now():
+                print(colored("❌ Customer's license has expired!", "red"))
+                self.press_any_key()
+                return
+
+            # Show available cars
+            print("\nAvailable Cars:")
+            cars_table = self.car.get_available_cars()
+            print(cars_table)
+
+            # Get car details
+            plate_number = input("\nEnter Car Plate Number: ").lower()
+            car_data = self.car.search_car(plate_number)
+
+            if car_data is None:
+                print(colored("❌ Car not found!", "red"))
+                self.press_any_key()
+                return
+
+            if car_data[6] != 'available':  # status column
+                print(colored("❌ Car is not available for booking!", "red"))
+                self.press_any_key()
+                return
+
+            # Get booking dates
+            while True:
+                try:
+                    start_date = input("Enter Start Date (YYYY-MM-DD): ")
+                    end_date = input("Enter End Date (YYYY-MM-DD): ")
+
+                    start = datetime.strptime(start_date, "%Y-%m-%d")
+                    end = datetime.strptime(end_date, "%Y-%m-%d")
+
+                    if start < datetime.now():
+                        print(colored("❌ Start date cannot be in the past!", "red"))
+                        continue
+
+                    if end <= start:
+                        print(colored("❌ End date must be after start date!", "red"))
+                        continue
+
+                    break
+                except ValueError:
+                    print(colored("❌ Invalid date format! Use YYYY-MM-DD", "red"))
+
+            # Calculate number of days and total cost
+            days = (end - start).days
+            rate_per_day = float(car_data[4])  # rate_per_day column
+            total_cost = rate_per_day * days
+
+            # Show booking summary
+            print("\nBooking Summary:")
+            print(f"Customer: {customer_data[1]}")  # name column
+            # make and model columns
+            print(f"Car: {car_data[1]} {car_data[2]}")
+            print(f"Start Date: {start_date}")
+            print(f"End Date: {end_date}")
+            print(f"Duration: {days} days")
+            print(f"Total Cost: ${total_cost:.2f}")
+
+            # Confirm booking
+            conf = input("\nConfirm booking? Press y to proceed: ")
+            if conf.lower() != 'y':
+                print("Booking cancelled.")
+                self.press_any_key()
+                return
+
+            # Create booking record
+            self.db.cursor.execute('''
+                INSERT INTO booking_requests 
+                (license_number, plate_number, start_date, end_date, cost, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))
+            ''', (license_number, plate_number, start_date, end_date, total_cost))
+
+            self.db.connection.commit()
+            print(colored("✅ Booking request created successfully!", "green"))
+
+        except sqlite3.Error as e:
+            print(colored(f"❌ Database error: {str(e)}", "red"))
+            self.db.connection.rollback()
+        except Exception as e:
+            print(colored(f"❌ An error occurred: {str(e)}", "red"))
+            self.db.connection.rollback()
+
         self.press_any_key()
